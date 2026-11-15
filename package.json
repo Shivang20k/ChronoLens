@@ -1,0 +1,20 @@
+{
+  "name": "chronolens",
+  "version": "1.0.0",
+  "description": "Browser-based developer timestamp converter, timezone toolkit, and OCR inspector",
+  "main": "index.html",
+  "scripts": {
+    "start": "node serve.js",
+    "dev": "node serve.js"
+  },
+  "keywords": [
+    "timestamp",
+    "epoch",
+    "timezone",
+    "ocr",
+    "developer-tools",
+    "tesseract"
+  ],
+  "author": "Shivang",
+  "license": "MIT"
+}

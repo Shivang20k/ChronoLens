@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChronoLens — Developer Time Toolkit</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Tesseract.js from CDN. Only engine/language assets are fetched; screenshots never leave the browser. -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js" defer></script>
+</head>
+<body>
+  <!-- ============ HEADER ============ -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">⏱</div>
+        <div class="brand-text">
+          <h1 class="brand-name">ChronoLens</h1>
+          <p class="brand-sub">Developer Time Toolkit</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="live-clock" title="Live current epoch seconds (UTC). Click to copy.">
+          <span class="live-clock-label">Epoch now</span>
+          <code class="live-clock-value" id="live-epoch">—</code>
+          <button class="copy-inline live-copy" id="live-copy" type="button" title="Copy current epoch seconds">⧉</button>
+        </div>
+        <span class="privacy-badge" title="Everything runs in your browser. Your JSON and screenshots are not uploaded.">
+          <span class="dot"></span> Runs in your browser
+        </span>
+      </div>
+    </div>
+    <nav class="main-nav" role="tablist" aria-label="Main navigation">
+      <button class="nav-tab active" data-view="converter" role="tab" aria-selected="true">Time Converter</button>
+      <button class="nav-tab" data-view="inspector" role="tab" aria-selected="false">Inspector</button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <!-- ============ TIME CONVERTER ============ -->
+    <section id="view-converter" class="view active" role="tabpanel">
+      <div class="card">
+        <h2 class="card-title">Time Converter</h2>
+        <p class="card-sub">Enter an epoch second (integer) or a wall-clock date/time, then read the same instant across timezones. When you enter a date/time, the matching epoch seconds are also produced as an output.</p>
+
+        <div class="mode-switch" role="tablist" aria-label="Input mode">
+          <button class="mode-tab active" data-mode="epoch" role="tab" aria-selected="true">Epoch seconds</button>
+          <button class="mode-tab" data-mode="datetime" role="tab" aria-selected="false">Date / Time (ISO)</button>
+        </div>
+
+        <!-- Epoch input -->
+        <div class="input-panel" id="epoch-panel">
+          <label class="field-label" for="epoch-input">Epoch timestamp <span class="muted">(seconds or milliseconds)</span></label>
+          <div class="row">
+            <input id="epoch-input" class="text-input mono" type="text" inputmode="numeric"
+                   placeholder="e.g. 1735689600 (seconds) or 1735689600000 (ms)" autocomplete="off" />
+            <button class="btn btn-ghost" id="epoch-current" type="button">Use current time</button>
+          </div>
+          <p class="hint">Supports 10-digit Unix seconds or 13-digit JavaScript/Java milliseconds. Unit is auto-detected.</p>
+          <div class="epoch-detection-badge hidden" id="epoch-detected-badge"></div>
+          <p class="error-text" id="epoch-error" hidden></p>
+        </div>
+
+        <!-- Date/time input -->
+        <div class="input-panel hidden" id="datetime-panel">
+          <label class="field-label">Date / Time <span class="muted">(24h local wall-clock; type or paste ISO string)</span></label>
+          <div class="segmented-dt" id="segmented-dt">
+            <input class="seg" data-part="year"   maxlength="4" inputmode="numeric" placeholder="YYYY" aria-label="Year" />
+            <span class="seg-sep">-</span>
+            <input class="seg" data-part="month"  maxlength="2" inputmode="numeric" placeholder="MM" aria-label="Month" />
+            <span class="seg-sep">-</span>
+            <input class="seg" data-part="day"    maxlength="2" inputmode="numeric" placeholder="DD" aria-label="Day" />
+            <span class="seg-sep seg-sep-t">T</span>
+            <input class="seg" data-part="hour"   maxlength="2" inputmode="numeric" placeholder="HH" aria-label="Hour" />
+            <span class="seg-sep">:</span>
+            <input class="seg" data-part="minute" maxlength="2" inputmode="numeric" placeholder="mm" aria-label="Minute" />
+            <span class="seg-sep">:</span>
+            <input class="seg" data-part="second" maxlength="2" inputmode="numeric" placeholder="ss" aria-label="Second" />
+            <span class="seg-sep">.</span>
+            <input class="seg seg-ms" data-part="ms" maxlength="3" inputmode="numeric" placeholder="SSS" aria-label="Milliseconds" />
+          </div>
+
+          <div class="two-col">
+            <div>
+              <label class="field-label" for="source-tz">Source timezone <span class="muted">(interprets the wall-clock above)</span></label>
+              <select id="source-tz" class="select-input"></select>
+            </div>
+          </div>
+          <p class="hint">Type into each box or paste a date string (e.g. <code>2025-01-01T14:30:00Z</code>). Source timezone resolves the instant for wall-clocks without an offset.</p>
+          <p class="error-text" id="dt-error" hidden></p>
+          <div class="dst-choice hidden" id="dst-choice">
+            <p class="dst-title">Ambiguous local time (fall-back transition)</p>
+            <p class="dst-sub">This wall-clock time occurs twice on this date. Which occurrence do you mean?</p>
+            <div class="dst-options" id="dst-options"></div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn btn-primary" id="convert-btn" type="button">Convert</button>
+          <button class="btn btn-ghost" id="clear-btn" type="button">Clear</button>
+        </div>
+      </div>
+
+      <!-- Epoch output (when input was a date/time string) -->
+      <div class="card hidden" id="epoch-output-card">
+        <div class="card-head">
+          <h2 class="card-title">Epoch output (from your date/time)</h2>
+        </div>
+        <p class="card-sub">The instant you entered above, expressed in Unix seconds and JavaScript/Java milliseconds.</p>
+        <div class="epoch-outputs-grid">
+          <div class="epoch-output-block">
+            <span class="tz-out-label">Epoch seconds (Unix)</span>
+            <div class="epoch-output-row">
+              <code class="epoch-output-value" id="epoch-output-value">—</code>
+              <button class="btn btn-ghost btn-sm" id="epoch-output-copy" type="button">⧉ Copy</button>
+            </div>
+          </div>
+          <div class="epoch-output-block">
+            <span class="tz-out-label">Epoch milliseconds (JS / Java)</span>
+            <div class="epoch-output-row">
+              <code class="epoch-output-value" id="epoch-output-ms-value">—</code>
+              <button class="btn btn-ghost btn-sm" id="epoch-output-ms-copy" type="button">⧉ Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target timezones -->
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Target timezones</h2>
+          <button class="btn btn-ghost btn-sm" id="add-tz" type="button">+ Add row</button>
+        </div>
+        <p class="card-sub">Same instant expressed in each selected timezone. DST is handled automatically. UTC output appends <code>Z</code>; non-UTC output does not show an offset.</p>
+        <div class="tz-list" id="tz-list"></div>
+        <div class="empty-state" id="tz-empty">No target timezones yet. Click “+ Add row” to add one.</div>
+      </div>
+    </section>
+
+    <!-- ============ INSPECTOR ============ -->
+    <section id="view-inspector" class="view" role="tabpanel">
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Inspector</h2>
+        </div>
+        <div class="mode-switch" role="tablist" aria-label="Inspector mode">
+          <button class="mode-tab active" data-inspector="json" role="tab" aria-selected="true">JSON Inspector</button>
+          <button class="mode-tab" data-inspector="screenshot" role="tab" aria-selected="false">Screenshot Inspector</button>
+        </div>
+
+        <!-- JSON Inspector -->
+        <div class="inspector-panel" id="json-panel">
+          <label class="field-label" for="json-input">Paste JSON</label>
+          <textarea id="json-input" class="json-textarea" placeholder='Paste JSON here, or click "Load sample"...' spellcheck="false"></textarea>
+          <div class="action-row">
+            <button class="btn btn-primary" id="scan-json" type="button">Scan JSON</button>
+            <button class="btn btn-ghost" id="load-sample" type="button">Load sample</button>
+            <button class="btn btn-ghost" id="clear-json" type="button">Clear</button>
+          </div>
+          <p class="error-text" id="json-error" hidden></p>
+
+          <div class="two-col" style="margin-top:14px;">
+            <div>
+              <label class="field-label" for="json-source-tz">Source timezone <span class="muted">(for ISO strings without offset)</span></label>
+              <select id="json-source-tz" class="select-input"></select>
+            </div>
+            <div>
+              <label class="field-label" for="json-target-tz">Target timezone <span class="muted">(convert detected timestamps into this zone)</span></label>
+              <select id="json-target-tz" class="select-input"></select>
+            </div>
+          </div>
+          <p class="hint">ISO strings that already include an offset / <code>Z</code> ignore the source tz. Epoch numbers are always UTC. Detected values are converted into the target timezone below.</p>
+
+          <div class="results-wrap">
+            <h3 class="results-title">Detected timestamps</h3>
+            <div class="results-table-wrap">
+              <table class="results-table" id="json-results">
+                <thead>
+                  <tr>
+                    <th>Path</th>
+                    <th>Original value</th>
+                    <th>Type</th>
+                    <th>Interpreted (UTC, ISO)</th>
+                    <th>In target tz (ISO)</th>
+                    <th class="col-copy">Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="json-empty">No JSON scanned yet.</div>
+          </div>
+        </div>
+
+        <!-- Screenshot Inspector -->
+        <div class="inspector-panel hidden" id="screenshot-panel">
+          <p class="card-sub">Capture a DB/JSON table with a snipping tool, then press <kbd>Ctrl</kbd>+<kbd>V</kbd> here — OCR runs automatically. Or drag &amp; drop / browse. The image stays in your browser.</p>
+
+          <div class="two-col">
+            <div>
+              <label class="field-label" for="ocr-source-tz">Source timezone <span class="muted">(for ISO strings without offset)</span></label>
+              <select id="ocr-source-tz" class="select-input"></select>
+            </div>
+            <div>
+              <label class="field-label" for="ocr-target-tz">Target timezone <span class="muted">(convert detected timestamps into this zone)</span></label>
+              <select id="ocr-target-tz" class="select-input"></select>
+            </div>
+          </div>
+          <p class="hint">Epoch numbers are always UTC. ISO strings without an offset use the source tz. Everything is converted into the target tz in the results.</p>
+
+          <div class="dropzone" id="dropzone" tabindex="0">
+            <div class="dz-inner">
+              <div class="dz-icon">📋</div>
+              <p class="dz-title">Paste (Ctrl+V), drag &amp; drop, or browse an image</p>
+              <p class="dz-sub">OCR runs automatically on drop. Image stays in your browser. Nothing is uploaded.</p>
+              <input type="file" id="file-input" accept="image/*" hidden />
+              <button class="btn btn-ghost" id="browse-btn" type="button">Browse image</button>
+            </div>
+          </div>
+
+          <div class="preview-wrap hidden" id="preview-wrap">
+            <div class="preview-head">
+              <h3 class="results-title">Screenshot <span class="muted">(small thumbnail)</span></h3>
+              <div class="action-row inline">
+                <button class="btn btn-ghost btn-sm" id="run-ocr" type="button">Re-run OCR</button>
+                <button class="btn btn-ghost btn-sm" id="remove-img" type="button">Remove image</button>
+              </div>
+            </div>
+            <div class="preview-thumb-wrap">
+              <img id="preview-img" alt="Screenshot thumbnail" />
+            </div>
+            <p class="status-text" id="ocr-status"></p>
+          </div>
+
+          <div class="results-wrap hidden" id="ocr-results-wrap">
+            <h3 class="results-title">Detected timestamp candidates</h3>
+            <p class="warn">⚠ OCR can misread similar characters (e.g. <code>0</code>/<code>O</code>, <code>1</code>/<code>I</code>). Numbers flagged <span class="badge badge-warn">epoch?</span> look like epoch seconds but could be ordinary numbers — review before trusting.</p>
+            <div class="results-table-wrap">
+              <table class="results-table" id="ocr-results">
+                <thead>
+                  <tr>
+                    <th>OCR text</th>
+                    <th>Type</th>
+                    <th>Interpreted (UTC, ISO)</th>
+                    <th>In target tz (ISO)</th>
+                    <th class="col-copy">Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="raw-ocr-wrap hidden" id="raw-ocr-wrap">
+            <details>
+              <summary class="results-title">Raw OCR text (for manual review)</summary>
+              <pre class="raw-ocr" id="raw-ocr"></pre>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="card privacy-card">
+        <p class="privacy-notice">
+          Your JSON and screenshots are processed locally in your browser. ChronoLens does not upload or store your data. External OCR library assets may be downloaded when needed, but your screenshot content never leaves your device.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/converter.js" defer></script>
+  <script src="js/json-inspector.js" defer></script>
+  <script src="js/screenshot-inspector.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
