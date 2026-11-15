@@ -87,22 +87,21 @@ git init -b main
 git add .
 git commit -m "feat: complete browser-based timestamp converter & OCR inspector"
 
-# Connect your GitHub repository (replace <YOUR_USERNAME> with your GitHub username)
-git remote add origin https://github.com/<YOUR_USERNAME>/chronolens.git
+# Connect your GitHub repository
+git remote add origin https://github.com/Shivang20k/ChronoLens.git
 
 # Push to GitHub
 git push -u origin main
 ```
 
 ### Step 3: Enable GitHub Pages
-1. Go to your repository on GitHub.
-2. Click **Settings** ➔ **Pages** (under Code and automation in the left sidebar).
-3. Under **Build and deployment** ➔ **Source**, select:
-   - **GitHub Actions** (recommended — the included `.github/workflows/deploy.yml` workflow will deploy automatically within ~1 minute).
-   *(Alternatively, you can select "Deploy from a branch" and pick branch `main` with folder `/(root)`).*
-4. Once the deployment finishes, your team sharing link will be live at:
+1. Go to your repository on GitHub: [github.com/Shivang20k/ChronoLens/settings/pages](https://github.com/Shivang20k/ChronoLens/settings/pages).
+2. Under **Build and deployment** ➔ **Source**, select:
+   - **GitHub Actions** (recommended — the included `.github/workflows/deploy.yml` workflow will deploy automatically).
+   - *Or* select **Deploy from a branch** ➔ pick branch `main` with folder `/(root)` and click **Save**.
+3. Once deployed, your team sharing link will be live at:
    ```
-   https://<YOUR_USERNAME>.github.io/chronolens/
+   https://Shivang20k.github.io/ChronoLens/
    ```
 
 Share this link with your team — anyone can use all conversion and OCR features directly in their browser without installing anything!
